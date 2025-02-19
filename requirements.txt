@@ -5,5 +5,5 @@ yfinance
 xgboost
 scikit-learn
 plotly
-ta-lib-bin
+ta-lib
 joblib
