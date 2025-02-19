@@ -4,7 +4,7 @@ import pandas as pd
 import yfinance as yf
 import plotly.graph_objects as go
 import joblib
-import talib
+import pandas_ta as ta  # ✅ Using pandas_ta instead of TA-Lib
 from datetime import datetime, timedelta
 
 # Load trained model and scaler
@@ -27,8 +27,8 @@ def predict_price(df):
 
 # Function to Generate Trading Signals
 def get_trading_signal(df):
-    df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['RSI'] = talib.RSI(df['Close'], timeperiod=14)
+    df['SMA_50'] = df['Close'].rolling(window=50).mean()  # ✅ Simple Moving Average (SMA)
+    df['RSI'] = df.ta.rsi(length=14)  # ✅ RSI Calculation Using pandas_ta
 
     last_price = df['Close'].iloc[-1]
     predicted_price = predict_price(df)
