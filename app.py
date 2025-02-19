@@ -1,49 +1,47 @@
+import streamlit as st
 import numpy as np
 import pandas as pd
-import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
-from tensorflow.keras.models import load_model
-from sklearn.preprocessing import MinMaxScaler
+import joblib
 import talib
+from datetime import datetime, timedelta
 
-# Load Pretrained LSTM Model
-model = load_model("lstm_model.h5")  
+# Load trained model and scaler
+xgb_model = joblib.load("xgb_model.pkl")
+scaler = joblib.load("scaler.pkl")
 
-# Function to fetch live stock data
+# Function to Fetch Live Stock Data
 def get_live_data(ticker, days=90):
     end_date = datetime.today().strftime('%Y-%m-%d')
     start_date = (datetime.today() - timedelta(days=days)).strftime('%Y-%m-%d')
     data = yf.download(ticker, start=start_date, end=end_date)
     return data
 
-# Function to make real-time predictions
+# Function to Make Predictions
 def predict_price(df):
-    scaler = MinMaxScaler(feature_range=(0,1))
-    scaled_data = scaler.fit_transform(df[['Close']])
-    last_60_days = scaled_data[-60:].reshape(1, 60, 1)
-    predicted_price = model.predict(last_60_days)
-    return scaler.inverse_transform(predicted_price)[0][0]
+    scaled_data = scaler.transform(df[['Close']])
+    last_60_days = scaled_data[-60:].reshape(1, -1)
+    predicted_price = xgb_model.predict(last_60_days)
+    return scaler.inverse_transform([[predicted_price[0]]])[0][0]
 
-# Function to generate trading signals
+# Function to Generate Trading Signals
 def get_trading_signal(df):
     df['SMA_50'] = df['Close'].rolling(window=50).mean()
-    df['SMA_200'] = df['Close'].rolling(window=200).mean()
     df['RSI'] = talib.RSI(df['Close'], timeperiod=14)
-    
+
     last_price = df['Close'].iloc[-1]
     predicted_price = predict_price(df)
 
     if last_price < df['SMA_50'].iloc[-1] and df['RSI'].iloc[-1] < 30:
-        return "📈 Buy Signal (Oversold + Below SMA50)"
+        return "📈 Buy Signal (Oversold)"
     elif last_price > df['SMA_50'].iloc[-1] and df['RSI'].iloc[-1] > 70:
-        return "📉 Sell Signal (Overbought + Above SMA50)"
+        return "📉 Sell Signal (Overbought)"
     else:
-        return "⚖️ Hold Signal (Neutral Condition)"
+        return "⚖️ Hold Signal"
 
 # Streamlit UI
-st.title("📈 AI-Powered Stock Prediction & Trading Signals")
+st.title("📈 AI-Powered Stock Prediction (XGBoost)")
 
 ticker = st.text_input("Enter Stock Symbol (e.g., AAPL)", "AAPL")
 
@@ -55,7 +53,6 @@ if st.button("Analyze & Predict"):
     st.subheader(f"🔮 Predicted Price: ${predicted_price:.2f}")
     st.subheader(f"🚦 Trading Signal: {trading_signal}")
     
-    # Plot Stock Data
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df.index, y=df['Close'], mode='lines', name='Actual Price'))
     st.plotly_chart(fig)
