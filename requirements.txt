@@ -5,5 +5,5 @@ yfinance
 xgboost
 scikit-learn
 plotly
-panda_ta
+pandas_ta
 joblib
